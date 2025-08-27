@@ -10,11 +10,14 @@ class GomokuGame:
         self.board = np.zeros((self.board_size, self.board_size), dtype=int)
         self.current_player = 1
 
+    def get_board_size(self):
+        return self.board_size
+
     def get_valid_moves(self):
         moves = []
-        for i in range(self.board_size):
-            for j in range(self.board_size):
-                if self.board[i][j] == 0:
+        for i, row in enumerate(self.board_size):
+            for j, block in enumerate(row):
+                if block == 0:
                     moves.append((i, j))
         return moves
     
@@ -31,9 +34,9 @@ class GomokuGame:
             2 平局
         '''
         space = self.board_size * self.board_size
-        for i in range(self.board_size):
-            for j in range(self.board_size):
-                if self.board[i][j] != 0:
+        for i, row in enumerate(self.board_size):
+            for j, block in enumerate(row):
+                if block != 0:
                     space -= 1
                     for x, y in [(1, 0), (0, 1), (1, 1), (1, -1)]:
                         cnt = 1
@@ -51,13 +54,39 @@ class GomokuGame:
             return 2
         else:
             return 0
-        
+
+    def get_game_state(self):
+        '''
+        返回 board, current_player
+        board: 当前棋盘
+        current_player: 当前玩家
+        '''
+        return self.board, self.current_player
+
+    def board2tensor(self):
+        '''
+        将棋盘转为3通道tensor
+        分别为 当前方棋子 对方棋子 空位
+        '''
+        cur_player = (self.board == self.current_player).astype(np.float32)
+        opponent_player = (self.board == -self.current_player).astype(np.float32)
+        empty = (self.board == 0).astype(np.float32)
+
+        tensor = np.stack([cur_player, opponent_player, empty], axis=0)
+        return tensor
+
     def move(self, x, y):
         if self.is_move_out_of_bounds(x, y) or self.check_game_state() != 0 or self.board[x][y] != 0:
             return False
         self.board[x][y] = self.current_player
         self.current_player = -self.current_player
         return True
+    
+    def game_after_move(self, x, y):
+        next_game = self
+        if not next_game.move(x, y):
+            return None
+        return next_game
 
     def display(self):
         symbols = {0: '.', 1: 'X', -1: 'O'}
