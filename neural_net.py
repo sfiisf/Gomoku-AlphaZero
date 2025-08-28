@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,7 +13,7 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         residual = x
-        out = self.relu(self.bn1(self.conv1(x)))
+        out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += residual
         out = F.relu(out)
@@ -54,7 +55,7 @@ class NeuralNet(nn.Module):
         policy = F.relu(self.policy_bn(self.policy_conv(x)))
         policy = policy.view(-1, 2 * self.board_size * self.board_size)
         policy = self.policy_fc(policy)
-        policy = F.log_softmax(policy, dim=1)
+        # policy = F.log_softmax(policy, dim=1)
 
         # 价值
         value = F.relu(self.value_bn(self.value_conv(x)))
@@ -67,4 +68,16 @@ class NeuralNet(nn.Module):
     @torch.no_grad()
     def predict(self, x):
         self.eval()
-        return self.forward(x)
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x).float()
+        if x.dim() == 3:
+            x = x.unsqueeze()
+        device = next(self.parameters()).device
+        x = x.to(device)
+
+        policy_logits, value = self.forward(x)
+        policy = torch.softmax(policy_logits, dim=1)
+
+        H = W = self.board_size
+        policy_2d = policy[0].view(H, W)
+        return policy_2d
